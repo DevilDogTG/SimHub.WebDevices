@@ -1,8 +1,12 @@
 using System;
+using System.Windows.Controls;
+using System.Windows.Media;
 using DevDogs.WebDevices.Core.Config;
 using DevDogs.WebDevices.Core.Devices;
+using DevDogs.WebDevices.Core.Editing;
 using DevDogs.WebDevices.Core.Hosting;
 using DevDogs.WebDevices.Core.State;
+using DevDogs.WebDevices.UI;
 using GameReaderCommon;
 using SimHub.Plugins;
 
@@ -15,7 +19,7 @@ namespace DevDogs.WebDevices;
 [PluginName("DevDogs Web Devices")]
 [PluginDescription("Switches SimHub web dashboards on each browser device by game and game state.")]
 [PluginAuthor("DevDogs")]
-public class WebDevicesPlugin : IPlugin, IDataPlugin
+public class WebDevicesPlugin : IPlugin, IDataPlugin, IWPFSettingsV2
 {
     /// <summary>
     /// The key SimHub stores this plugin's settings under; the file is
@@ -41,6 +45,16 @@ public class WebDevicesPlugin : IPlugin, IDataPlugin
     /// Gets or sets the SimHub plugin manager; assigned by SimHub before <see cref="Init"/> is called.
     /// </summary>
     public PluginManager PluginManager { get; set; } = null!; // set by SimHub before Init
+
+    /// <summary>
+    /// Gets the name shown in SimHub's left menu.
+    /// </summary>
+    public string LeftMenuTitle => "Web Devices";
+
+    /// <summary>
+    /// Gets the icon shown in SimHub's left menu.
+    /// </summary>
+    public ImageSource PictureIcon { get; } = PluginIcon.Create();
 
     /// <summary>
     /// Gets the user settings; loaded in <see cref="Init"/>.
@@ -122,9 +136,36 @@ public class WebDevicesPlugin : IPlugin, IDataPlugin
     }
 
     /// <summary>
+    /// Returns the "Web Devices" settings tab.
+    /// </summary>
+    /// <param name="pluginManager">The SimHub plugin manager.</param>
+    /// <returns>The tab.</returns>
+    public Control GetWPFSettingsControl(PluginManager pluginManager)
+    {
+        var host = _host;
+        var editor = new SettingsEditor(
+            Settings,
+            SimHubCatalog.Dashboards(),
+            SimHubCatalog.Games(),
+            () => string.IsNullOrWhiteSpace(pluginManager.GameName) ? null : pluginManager.GameName,
+            SimHubCatalog.LanAddress,
+            settings =>
+            {
+                this.SaveCommonSettings(SettingsKey, settings);
+                Settings = settings;
+                var status = host.Configure(settings);
+                SimHub.Logging.Current.Info($"{LogPrefix}Settings saved: {settings.Devices.Count} device(s). {status.Message}");
+            });
+
+        return new SettingsControl(
+            editor,
+            e => e.RefreshStatus(host.Router.State, host.Server.Status, host.Registry.Snapshot(), host.Router.GetTarget, DateTime.UtcNow));
+    }
+
+    /// <summary>
     /// Called by SimHub when this instance ends: on every game switch and on exit. The shared host keeps
-    /// running for the next instance. Settings are not saved here: nothing changes them at runtime yet, and
-    /// saving would overwrite edits made to the file while SimHub runs.
+    /// running for the next instance. Settings are saved only by the settings tab's Save button, never here,
+    /// so an unchanged copy can never overwrite newer settings.
     /// </summary>
     /// <param name="pluginManager">The SimHub plugin manager.</param>
     public void End(PluginManager pluginManager)
