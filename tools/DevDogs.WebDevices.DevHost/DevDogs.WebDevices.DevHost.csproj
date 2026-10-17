@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Development only: serves device pages from the real Core server with game states typed in by hand. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>DevDogs.WebDevices.DevHost</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DevDogs.WebDevices.Core\DevDogs.WebDevices.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Core leaves Newtonsoft.Json to SimHub at runtime; outside SimHub this host must bring it. -->
+    <PackageReference Include="Newtonsoft.Json" />
+  </ItemGroup>
+</Project>
