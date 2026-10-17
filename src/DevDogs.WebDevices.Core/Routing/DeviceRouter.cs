@@ -51,6 +51,18 @@ public sealed class DeviceRouter
         }
     }
 
+    /// <summary>Gets the port of SimHub's web server, which devices load dashboards from.</summary>
+    public int SimHubWebPort
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _settings.SimHubWebPort;
+            }
+        }
+    }
+
     /// <summary>Gets a copy of the settings in use.</summary>
     public RouterSettings Settings
     {

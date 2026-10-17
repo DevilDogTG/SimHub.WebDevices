@@ -161,6 +161,18 @@ public class DeviceRouterTests
     }
 
     [Fact]
+    public void Exposes_the_simhub_web_port_for_device_pages()
+    {
+        var (router, _) = Create();
+        var settings = Settings();
+        settings.SimHubWebPort = 8890;
+
+        router.ApplySettings(settings);
+
+        router.SimHubWebPort.Should().Be(8890);
+    }
+
+    [Fact]
     public void Later_edits_to_a_settings_object_do_not_leak_into_the_router()
     {
         var settings = Settings();
