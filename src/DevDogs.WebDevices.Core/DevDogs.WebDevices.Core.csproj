@@ -11,6 +11,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The device page, served by the plugin's HTTP server. -->
+    <EmbeddedResource Include="Server\Assets\device.html" LogicalName="DevDogs.WebDevices.Core.Server.device.html" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="DevDogs.WebDevices.Core.Tests" />
   </ItemGroup>
 </Project>

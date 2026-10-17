@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="theme-color" content="#000000">
+  <title>SimHub device</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+    #dash { position: fixed; top: 0; left: 0; width: 100%; height: 100%; border: 0; display: none; }
+    #msg {
+      position: fixed; top: 50%; left: 0; width: 100%; transform: translateY(-50%);
+      color: #ccc; font: 18px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <iframe id="dash" allowfullscreen></iframe>
+  <div id="msg">Connecting to SimHub&hellip;</div>
+  <script>
+    // Plain ES5: the oldest supported browser is Safari 12 (iPad mini 2). See docs/adr/ADR-0002 and ADR-0003.
+    (function () {
+      var frame = document.getElementById('dash');
+      var msg = document.getElementById('msg');
+      var currentPath = null;
+      var source = null;
+      var pollTimer = null;
+
+      function message(text) {
+        msg.textContent = text;
+        msg.style.display = 'block';
+      }
+
+      function show(p) {
+        if (!p.path) {
+          currentPath = null;
+          frame.style.display = 'none';
+          frame.src = 'about:blank';
+          message('No dashboard is set for "' + p.device + '" (' + p.state + (p.game ? ', ' + p.game : '') + ').');
+          return;
+        }
+        msg.style.display = 'none';
+        frame.style.display = 'block';
+        if (p.path !== currentPath) {
+          currentPath = p.path;
+          frame.src = location.protocol + '//' + location.hostname + ':' + p.simHubPort + p.path;
+        }
+      }
+
+      function poll() {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', 'state?t=' + new Date().getTime());
+        xhr.onload = function () {
+          if (xhr.status === 200) {
+            show(JSON.parse(xhr.responseText));
+            if (window.EventSource && !source) {
+              stopPolling();
+              listen();
+            }
+          } else if (xhr.status === 404) {
+            currentPath = null;
+            frame.style.display = 'none';
+            message('This device is not configured in SimHub.');
+          }
+        };
+        xhr.onerror = function () {
+          message('Waiting for SimHub…');
+        };
+        xhr.send();
+      }
+
+      function startPolling() {
+        if (!pollTimer) {
+          poll();
+          pollTimer = setInterval(poll, 5000);
+        }
+      }
+
+      function stopPolling() {
+        if (pollTimer) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+        }
+      }
+
+      function listen() {
+        source = new EventSource('events');
+        source.addEventListener('dash', function (e) {
+          show(JSON.parse(e.data));
+        });
+        source.addEventListener('gone', function () {
+          source.close();
+          source = null;
+          startPolling();
+        });
+        source.onerror = function () {
+          // EventSource retries by itself after a network drop; once it gives up (CLOSED), poll instead.
+          if (source && source.readyState === 2) {
+            source = null;
+            startPolling();
+          }
+        };
+      }
+
+      if (window.EventSource) {
+        listen();
+      } else {
+        startPolling();
+      }
+    })();
+  </script>
+</body>
+</html>
