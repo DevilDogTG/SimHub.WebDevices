@@ -2,57 +2,136 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="theme-color" content="#000000">
   <title>SimHub device</title>
   <style>
-    html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
-    #dash { position: fixed; top: 0; left: 0; width: 100%; height: 100%; border: 0; display: none; }
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
+    body { position: fixed; top: 0; left: 0; }
+    /* Old iOS Safari sizes iframes to their content: 1px + min-width pins the width, script pins the height. */
+    #dash {
+      position: absolute; top: 0; left: 0; width: 1px; min-width: 100%; height: 100%;
+      border: 0; display: none; background: #000;
+    }
     #msg {
-      position: fixed; top: 50%; left: 0; width: 100%; transform: translateY(-50%);
+      position: absolute; top: 50%; left: 0; width: 100%; padding: 0 16px; box-sizing: border-box;
+      -webkit-transform: translateY(-50%); transform: translateY(-50%);
       color: #ccc; font: 18px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; text-align: center;
+    }
+    #msg small { display: block; margin-top: 8px; color: #777; font-size: 14px; }
+    #status {
+      position: absolute; right: 8px; bottom: 8px; display: none; padding: 4px 10px; border-radius: 12px;
+      background: rgba(0, 0, 0, 0.7); color: #fc6; font: 13px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif;
+      pointer-events: none;
     }
   </style>
 </head>
 <body>
-  <iframe id="dash" allowfullscreen></iframe>
+  <iframe id="dash" scrolling="no" allowfullscreen></iframe>
   <div id="msg">Connecting to SimHub&hellip;</div>
+  <div id="status"></div>
   <script>
     // Plain ES5: the oldest supported browser is Safari 12 (iPad mini 2). See docs/adr/ADR-0002 and ADR-0003.
     (function () {
+      var NOTICE_DELAY_MS = 3000; // brief drops (SimHub switching games) should not flash a notice
+      var POLL_MS = 5000;
+      var FIT_MS = 2000; // re-fit periodically too: a missed resize event must not leave the frame mis-sized
+
       var frame = document.getElementById('dash');
       var msg = document.getElementById('msg');
+      var status = document.getElementById('status');
+      var device = decodeURIComponent(location.pathname.split('/')[1] || '');
       var currentPath = null;
       var source = null;
       var pollTimer = null;
+      var noticeTimer = null;
+      var iconSet = false;
 
-      function message(text) {
+      document.title = 'SimHub · ' + device;
+
+      function fit() {
+        // A zero size (page still hidden, iOS standalone start-up) falls back to the CSS height.
+        var height = window.innerHeight;
+        frame.style.height = height > 0 ? height + 'px' : '';
+      }
+
+      function message(text, detail) {
         msg.textContent = text;
+        if (detail) {
+          var small = document.createElement('small');
+          small.textContent = detail;
+          msg.appendChild(small);
+        }
         msg.style.display = 'block';
       }
 
+      function hideFrame() {
+        currentPath = null;
+        frame.style.display = 'none';
+        frame.src = 'about:blank';
+      }
+
+      function connected() {
+        if (noticeTimer) {
+          clearTimeout(noticeTimer);
+          noticeTimer = null;
+        }
+        status.style.display = 'none';
+      }
+
+      function disconnected(text) {
+        if (!noticeTimer && status.style.display !== 'block') {
+          noticeTimer = setTimeout(function () {
+            noticeTimer = null;
+            status.textContent = text;
+            status.style.display = 'block';
+          }, NOTICE_DELAY_MS);
+        }
+      }
+
+      function setHomeScreenIcon(simHubPort) {
+        // Borrow SimHub's own icon for "Add to Home Screen".
+        if (iconSet) {
+          return;
+        }
+        iconSet = true;
+        var link = document.createElement('link');
+        link.rel = 'apple-touch-icon';
+        link.href = location.protocol + '//' + location.hostname + ':' + simHubPort + '/favicons/apple-icon-180x180.png';
+        document.head.appendChild(link);
+      }
+
       function show(p) {
+        connected();
+        setHomeScreenIcon(p.simHubPort);
         if (!p.path) {
-          currentPath = null;
-          frame.style.display = 'none';
-          frame.src = 'about:blank';
-          message('No dashboard is set for "' + p.device + '" (' + p.state + (p.game ? ', ' + p.game : '') + ').');
+          hideFrame();
+          message('No dashboard is set for this state.',
+            p.device + ' · ' + p.state + (p.game ? ' · ' + p.game : ''));
           return;
         }
         msg.style.display = 'none';
         frame.style.display = 'block';
+        fit();
         if (p.path !== currentPath) {
           currentPath = p.path;
           frame.src = location.protocol + '//' + location.hostname + ':' + p.simHubPort + p.path;
         }
       }
 
+      function notConfigured() {
+        connected();
+        hideFrame();
+        message('"' + device + '" is not configured in SimHub.', 'Add it in SimHub; this page will pick it up.');
+      }
+
       function poll() {
         var xhr = new XMLHttpRequest();
         xhr.open('GET', 'state?t=' + new Date().getTime());
+        xhr.timeout = POLL_MS;
         xhr.onload = function () {
           if (xhr.status === 200) {
             show(JSON.parse(xhr.responseText));
@@ -61,13 +140,13 @@
               listen();
             }
           } else if (xhr.status === 404) {
-            currentPath = null;
-            frame.style.display = 'none';
-            message('This device is not configured in SimHub.');
+            notConfigured();
+          } else {
+            disconnected('Waiting for SimHub…');
           }
         };
-        xhr.onerror = function () {
-          message('Waiting for SimHub…');
+        xhr.onerror = xhr.ontimeout = function () {
+          disconnected('Waiting for SimHub…');
         };
         xhr.send();
       }
@@ -75,7 +154,7 @@
       function startPolling() {
         if (!pollTimer) {
           poll();
-          pollTimer = setInterval(poll, 5000);
+          pollTimer = setInterval(poll, POLL_MS);
         }
       }
 
@@ -88,22 +167,35 @@
 
       function listen() {
         source = new EventSource('events');
+        source.onopen = connected;
         source.addEventListener('dash', function (e) {
           show(JSON.parse(e.data));
         });
         source.addEventListener('gone', function () {
           source.close();
           source = null;
+          notConfigured();
           startPolling();
         });
         source.onerror = function () {
-          // EventSource retries by itself after a network drop; once it gives up (CLOSED), poll instead.
           if (source && source.readyState === 2) {
+            // The browser gave up (for example a 404 after the device was removed): poll instead.
             source = null;
             startPolling();
+          } else {
+            // The browser retries by itself; keep the last dashboard on screen meanwhile.
+            disconnected('Reconnecting to SimHub…');
           }
         };
       }
+
+      fit();
+      setInterval(fit, FIT_MS);
+      window.addEventListener('resize', fit);
+      window.addEventListener('orientationchange', function () {
+        // iOS reports the new size only after the rotation animation.
+        setTimeout(fit, 300);
+      });
 
       if (window.EventSource) {
         listen();
