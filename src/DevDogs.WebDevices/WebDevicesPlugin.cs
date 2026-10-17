@@ -31,6 +31,9 @@ public class WebDevicesPlugin : IPlugin, IDataPlugin
     private DeviceRouter _router = null!; // assigned in Init, which SimHub calls before any other member
     private WebDevicesServer _server = null!; // assigned in Init
 
+    // The raw flags last logged, so they are logged only when they change rather than every frame.
+    private (string? Game, bool Process, bool Running, bool Menu, bool Paused, bool Replay)? _lastFlags;
+
     /// <summary>
     /// Gets or sets the SimHub plugin manager; assigned by SimHub before <see cref="Init"/> is called.
     /// </summary>
@@ -74,12 +77,36 @@ public class WebDevicesPlugin : IPlugin, IDataPlugin
     /// <param name="data">The current game data.</param>
     public void DataUpdate(PluginManager pluginManager, ref GameData data)
     {
+        LogFlagChanges(data);
+
         var signals = new GameSignals(data.GameName, data.RunningGameProcessDetected, data.GameRunning, data.GameInMenu);
         if (_router.Observe(signals, _clock.Elapsed))
         {
             var state = _router.State;
             SimHub.Logging.Current.Info($"{LogPrefix}State: {state.State}{(state.GameName is null ? "" : " (" + state.GameName + ")")}");
         }
+    }
+
+    /// <summary>
+    /// Logs SimHub's raw game flags whenever any of them changes, so per-game detection (process, menu,
+    /// pause) can be checked against what the router decided. Paused and replay are not used for routing
+    /// yet; they are logged to see what games report.
+    /// </summary>
+    /// <param name="data">The current game data.</param>
+    private void LogFlagChanges(GameData data)
+    {
+        var flags = (data.GameName, data.RunningGameProcessDetected, data.GameRunning, data.GameInMenu,
+            data.GamePaused, data.GameReplay);
+        if (_lastFlags == flags)
+        {
+            return;
+        }
+
+        _lastFlags = flags;
+        SimHub.Logging.Current.Info(
+            $"{LogPrefix}Flags: game={flags.GameName ?? "(none)"} process={flags.RunningGameProcessDetected} " +
+            $"running={flags.GameRunning} menu={flags.GameInMenu} paused={flags.GamePaused} " +
+            $"replay={flags.GameReplay}");
     }
 
     /// <summary>
