@@ -19,7 +19,10 @@ namespace DevDogs.WebDevices;
 [PluginAuthor("DevDogs")]
 public class WebDevicesPlugin : IPlugin, IDataPlugin
 {
-    /// <summary>The key SimHub stores this plugin's settings under.</summary>
+    /// <summary>
+    /// The key SimHub stores this plugin's settings under; the file is
+    /// <c>PluginsData\Common\WebDevicesPlugin.WebDevicesSettings.json</c> (SimHub prefixes the class name).
+    /// </summary>
     private const string SettingsKey = "WebDevicesSettings";
 
     private const string LogPrefix = "[WebDevices] ";
@@ -80,12 +83,12 @@ public class WebDevicesPlugin : IPlugin, IDataPlugin
     }
 
     /// <summary>
-    /// Called once by SimHub when it shuts down.
+    /// Called once by SimHub when it shuts down. Settings are not saved here: nothing changes them at
+    /// runtime yet, and saving would overwrite edits made to the file while SimHub runs.
     /// </summary>
     /// <param name="pluginManager">The SimHub plugin manager.</param>
     public void End(PluginManager pluginManager)
     {
         _server.Dispose();
-        this.SaveCommonSettings(SettingsKey, Settings);
     }
 }
