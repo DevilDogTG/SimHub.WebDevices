@@ -6,6 +6,9 @@
   <Folder Name="/tests/">
     <Project Path="tests/DevDogs.WebDevices.Core.Tests/DevDogs.WebDevices.Core.Tests.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/DevDogs.WebDevices.DevHost/DevDogs.WebDevices.DevHost.csproj" />
+  </Folder>
   <Folder Name="/Solution Items/">
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
