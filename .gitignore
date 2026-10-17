@@ -1,0 +1,14 @@
+# Build output
+bin/
+obj/
+artifacts/
+TestResults/
+
+# IDE
+.vs/
+.idea/
+*.user
+*.suo
+
+# Agent state lives in ~/.agent-brains, never in this repo
+.claude/
