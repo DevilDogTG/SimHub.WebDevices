@@ -1,0 +1,21 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Polyfills newer C# language features (init, records, nullable attributes) for net48 / netstandard2.0. -->
+    <PackageVersion Include="PolySharp" Version="1.16.0" />
+    <!-- SimHub ships Newtonsoft.Json 13 (assembly 13.0.0.0); compile against it, never ship it. -->
+    <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
+
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageVersion Include="xunit.v3" Version="3.2.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageVersion Include="FluentAssertions" Version="7.2.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <GlobalPackageReference Include="PolySharp" />
+  </ItemGroup>
+</Project>
