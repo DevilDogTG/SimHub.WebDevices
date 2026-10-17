@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Device routing logic with no SimHub dependency, so it is testable on any runtime. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>DevDogs.WebDevices.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Provided at runtime by SimHub (see Directory.Packages.props); not copied to the output. -->
+    <PackageReference Include="Newtonsoft.Json" PrivateAssets="all" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DevDogs.WebDevices.Core.Tests" />
+  </ItemGroup>
+</Project>

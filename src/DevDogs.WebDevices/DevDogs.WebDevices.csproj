@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The SimHub plugin assembly. SimHub runs on .NET Framework 4.8 (docs/adr/ADR-0001). -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>DevDogs.WebDevices</RootNamespace>
+    <AssemblyName>DevDogs.WebDevices</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DevDogs.WebDevices.Core\DevDogs.WebDevices.Core.csproj" />
+  </ItemGroup>
+
+  <!-- SimHub's own assemblies: resolved from the local install and never copied to the output. -->
+  <ItemGroup>
+    <Reference Include="SimHub.Plugins" HintPath="$(SimHubPath)\SimHub.Plugins.dll" Private="false" />
+    <Reference Include="GameReaderCommon" HintPath="$(SimHubPath)\GameReaderCommon.dll" Private="false" />
+    <Reference Include="SimHub.Logging" HintPath="$(SimHubPath)\SimHub.Logging.dll" Private="false" />
+    <Reference Include="log4net" HintPath="$(SimHubPath)\log4net.dll" Private="false" />
+  </ItemGroup>
+
+  <Target Name="EnsureSimHubInstalled" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(SimHubPath)\SimHub.Plugins.dll')"
+           Text="SimHub not found at '$(SimHubPath)'. Install SimHub or pass -p:SimHubPath=&lt;folder&gt;." />
+  </Target>
+</Project>
