@@ -1,9 +1,7 @@
 using System;
-using System.Diagnostics;
 using DevDogs.WebDevices.Core.Config;
 using DevDogs.WebDevices.Core.Devices;
-using DevDogs.WebDevices.Core.Routing;
-using DevDogs.WebDevices.Core.Server;
+using DevDogs.WebDevices.Core.Hosting;
 using DevDogs.WebDevices.Core.State;
 using GameReaderCommon;
 using SimHub.Plugins;
@@ -27,9 +25,14 @@ public class WebDevicesPlugin : IPlugin, IDataPlugin
 
     private const string LogPrefix = "[WebDevices] ";
 
-    private readonly Stopwatch _clock = Stopwatch.StartNew();
-    private DeviceRouter _router = null!; // assigned in Init, which SimHub calls before any other member
-    private WebDevicesServer _server = null!; // assigned in Init
+    /// <summary>
+    /// The host shared by successive plugin instances. SimHub ends this plugin and creates a new instance on
+    /// every game switch; the host, and every device connection, survives that (docs/adr/ADR-0007). The grace
+    /// period only matters if the plugin is ended without a successor; on SimHub exit the process ends anyway.
+    /// </summary>
+    private static readonly SharedInstance<RouterHost> SharedHost = new(TimeSpan.FromSeconds(10));
+
+    private RouterHost _host = null!; // assigned in Init, which SimHub calls before any other member
 
     // The raw flags last logged, so they are logged only when they change rather than every frame.
     private (string? Game, bool Process, bool Running, bool Menu, bool Paused, bool Replay)? _lastFlags;
@@ -47,10 +50,10 @@ public class WebDevicesPlugin : IPlugin, IDataPlugin
     /// <summary>
     /// Gets the connection state of every device seen since SimHub started.
     /// </summary>
-    public DeviceRegistry Devices { get; } = new(() => DateTime.UtcNow);
+    public DeviceRegistry Devices => _host.Registry;
 
     /// <summary>
-    /// Loads settings and starts the device server.
+    /// Loads settings and attaches to the shared host, starting the device server if it is not running.
     /// </summary>
     /// <param name="pluginManager">The SimHub plugin manager.</param>
     public void Init(PluginManager pluginManager)
@@ -61,13 +64,22 @@ public class WebDevicesPlugin : IPlugin, IDataPlugin
             SimHub.Logging.Current.Warn(LogPrefix + "Settings problem: " + problem);
         }
 
-        // Seeding with the time keeps dashboard URLs unique across SimHub restarts.
-        _router = new DeviceRouter(Settings, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-        _server = new WebDevicesServer(_router, Devices);
-        _server.Log += message => SimHub.Logging.Current.Info(LogPrefix + message);
-        _server.Start(Settings.Port);
+        var reused = true;
+        _host = SharedHost.Acquire(() =>
+        {
+            reused = false;
 
-        SimHub.Logging.Current.Info($"{LogPrefix}Loaded with {Settings.Devices.Count} device(s).");
+            // Seeding with the time keeps dashboard URLs unique across SimHub restarts.
+            return new RouterHost(
+                Settings,
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                () => DateTime.UtcNow,
+                message => SimHub.Logging.Current.Info(LogPrefix + message));
+        });
+        _host.Configure(Settings);
+
+        SimHub.Logging.Current.Info(
+            $"{LogPrefix}Loaded with {Settings.Devices.Count} device(s){(reused ? "; server kept running" : "")}.");
     }
 
     /// <summary>
@@ -80,9 +92,9 @@ public class WebDevicesPlugin : IPlugin, IDataPlugin
         LogFlagChanges(data);
 
         var signals = new GameSignals(data.GameName, data.RunningGameProcessDetected, data.GameRunning, data.GameInMenu);
-        if (_router.Observe(signals, _clock.Elapsed))
+        if (_host.Observe(signals))
         {
-            var state = _router.State;
+            var state = _host.Router.State;
             SimHub.Logging.Current.Info($"{LogPrefix}State: {state.State}{(state.GameName is null ? "" : " (" + state.GameName + ")")}");
         }
     }
@@ -110,12 +122,13 @@ public class WebDevicesPlugin : IPlugin, IDataPlugin
     }
 
     /// <summary>
-    /// Called once by SimHub when it shuts down. Settings are not saved here: nothing changes them at
-    /// runtime yet, and saving would overwrite edits made to the file while SimHub runs.
+    /// Called by SimHub when this instance ends: on every game switch and on exit. The shared host keeps
+    /// running for the next instance. Settings are not saved here: nothing changes them at runtime yet, and
+    /// saving would overwrite edits made to the file while SimHub runs.
     /// </summary>
     /// <param name="pluginManager">The SimHub plugin manager.</param>
     public void End(PluginManager pluginManager)
     {
-        _server.Dispose();
+        SharedHost.Release();
     }
 }
