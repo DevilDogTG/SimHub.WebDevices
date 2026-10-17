@@ -1,7 +1,8 @@
 namespace DevDogs.WebDevices.Core.Config;
 
 /// <summary>
-/// The dashboards shown while a game is running. An empty value falls back to a more general setting.
+/// The dashboards shown while a game is running. An empty value falls back as described in
+/// <see cref="Routing.DashboardResolver"/>.
 /// </summary>
 public class GameDashboards
 {
