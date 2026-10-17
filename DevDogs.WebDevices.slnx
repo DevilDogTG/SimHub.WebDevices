@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DevDogs.WebDevices.Core/DevDogs.WebDevices.Core.csproj" />
+    <Project Path="src/DevDogs.WebDevices/DevDogs.WebDevices.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DevDogs.WebDevices.Core.Tests/DevDogs.WebDevices.Core.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+    <File Path=".editorconfig" />
+  </Folder>
+</Solution>
