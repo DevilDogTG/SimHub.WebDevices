@@ -105,7 +105,7 @@ public class WebDevicesPlugin : IPlugin, IDataPlugin, IWPFSettingsV2
     {
         LogFlagChanges(data);
 
-        var signals = new GameSignals(data.GameName, data.RunningGameProcessDetected, data.GameRunning, data.GameInMenu);
+        var signals = new GameSignals(data.GameName, data.RunningGameProcessDetected, data.GameRunning, data.GameInMenu, data.GamePaused);
         if (_host.Observe(signals))
         {
             var state = _host.Router.State;
@@ -115,8 +115,8 @@ public class WebDevicesPlugin : IPlugin, IDataPlugin, IWPFSettingsV2
 
     /// <summary>
     /// Logs SimHub's raw game flags whenever any of them changes, so per-game detection (process, menu,
-    /// pause) can be checked against what the router decided. Paused and replay are not used for routing
-    /// yet; they are logged to see what games report.
+    /// pause) can be checked against what the router decided. Replay is not used for routing; it is logged
+    /// to see what games report.
     /// </summary>
     /// <param name="data">The current game data.</param>
     private void LogFlagChanges(GameData data)
