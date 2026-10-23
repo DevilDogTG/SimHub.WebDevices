@@ -23,6 +23,20 @@ public class GameStateDetectorTests
         state.State.Should().Be(expected);
     }
 
+    [Theory]
+    // process, running, paused -> state
+    [InlineData(true, true, true, GameState.GameIdle)] // ETS2's Esc menu reports paused, never "in menu"
+    [InlineData(false, true, true, GameState.GameIdle)]
+    [InlineData(true, false, true, GameState.GameIdle)]
+    [InlineData(false, false, true, GameState.SystemIdle)] // a stale paused flag after the game closed
+    [InlineData(true, true, false, GameState.Driving)]
+    public void A_paused_game_counts_as_in_menus(bool processDetected, bool gameRunning, bool paused, GameState expected)
+    {
+        var state = GameStateDetector.Detect(new GameSignals("ETS2", processDetected, gameRunning, InMenu: false, Paused: paused));
+
+        state.State.Should().Be(expected);
+    }
+
     [Fact]
     public void System_idle_carries_no_game_so_changing_the_selected_game_in_simhub_does_not_switch_devices()
     {

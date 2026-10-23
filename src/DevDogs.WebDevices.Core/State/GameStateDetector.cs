@@ -4,7 +4,8 @@ namespace DevDogs.WebDevices.Core.State;
 /// Turns SimHub's raw game flags into a <see cref="RouterState"/>.
 /// </summary>
 /// <remarks>
-/// Paused, replay and spectating count as driving so a pause does not flicker every device.
+/// A paused game counts as in menus: ETS2, for one, reports its in-game menu only as paused. Replays count
+/// as driving.
 /// </remarks>
 public static class GameStateDetector
 {
@@ -22,7 +23,8 @@ public static class GameStateDetector
         }
 
         var gameName = string.IsNullOrWhiteSpace(signals.GameName) ? null : signals.GameName;
-        var state = signals.GameRunning && !signals.InMenu ? GameState.Driving : GameState.GameIdle;
+        var driving = signals.GameRunning && !signals.InMenu && !signals.Paused;
+        var state = driving ? GameState.Driving : GameState.GameIdle;
         return new RouterState(state, gameName);
     }
 }

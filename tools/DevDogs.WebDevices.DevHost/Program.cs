@@ -26,6 +26,7 @@ public static class Program
           idle             no game running
           menu <game>      game running, not driving
           drive <game>     driving
+          pause <game>     game paused (counts as in menus)
           reload           re-read the settings file
           quit             stop
         """;
@@ -202,6 +203,9 @@ public static class Program
                 break;
             case "drive":
                 SetSignals(new GameSignals(game, true, true, false));
+                break;
+            case "pause":
+                SetSignals(new GameSignals(game, true, true, false, Paused: true));
                 break;
             case "reload":
                 host.Configure(LoadSettings(settingsPath, port));
