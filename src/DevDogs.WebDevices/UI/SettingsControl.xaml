@@ -106,7 +106,7 @@
               </TextBlock>
 
               <styles:SHToggleCheckbox Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,6"
-                                       Content="Hide SimHub's on-screen dashboard controls" IsChecked="{Binding HideControls}" />
+                                       Content="Hide SimHub's dashboard controls (Fullscreen / Reload / Back panel shown on each load)" IsChecked="{Binding HideControls}" />
             </Grid>
 
             <styles:SHSubSection Title="When no game is running" Margin="0,12,0,0">

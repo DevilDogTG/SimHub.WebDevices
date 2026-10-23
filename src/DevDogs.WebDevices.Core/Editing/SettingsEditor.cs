@@ -367,6 +367,10 @@ public sealed class SettingsEditor : ObservableObject
 
         var device = NewDevice();
         device.Name = $"device-{number}";
+
+        // SimHub shows its dashboard controls on every dashboard load, so on a device that switches
+        // dashboards they would keep reappearing.
+        device.HideControls = true;
         Devices.Add(device);
         SelectedDevice = device;
     }

@@ -106,6 +106,18 @@ public class SettingsEditorTests
     }
 
     [Fact]
+    public void New_devices_hide_simhubs_dashboard_controls()
+    {
+        // SimHub shows its Fullscreen/Reload/Back panel on every dashboard load, so on a switching
+        // device it would reappear after every switch.
+        var editor = Create();
+
+        editor.AddDeviceCommand.Execute(null);
+
+        editor.SelectedDevice!.HideControls.Should().BeTrue();
+    }
+
+    [Fact]
     public void Removing_a_device_selects_its_neighbour()
     {
         var editor = Create();
