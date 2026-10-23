@@ -73,23 +73,40 @@ public class SettingsEditorTests
     public void Starts_clean_and_becomes_dirty_on_edit_and_clean_again_when_undone()
     {
         var editor = Create();
-        editor.IsDirty.Should().BeFalse();
+        editor.IsDevicesDirty.Should().BeFalse();
 
         editor.Devices[0].SystemIdleDashboard = "Truck";
-        editor.IsDirty.Should().BeTrue();
+        editor.IsDevicesDirty.Should().BeTrue();
 
         editor.Devices[0].SystemIdleDashboard = "Clock";
-        editor.IsDirty.Should().BeFalse();
+        editor.IsDevicesDirty.Should().BeFalse();
     }
 
     [Fact]
-    public void Edits_inside_game_rows_mark_the_editor_dirty()
+    public void Edits_inside_game_rows_mark_the_devices_dirty()
     {
         var editor = Create();
 
         editor.Devices[0].Games[0].GameIdle = "Clock";
 
-        editor.IsDirty.Should().BeTrue();
+        editor.IsDevicesDirty.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Device_and_general_edits_mark_only_their_own_tab_dirty()
+    {
+        var editor = Create();
+
+        editor.Devices[0].HideControls = false;
+
+        editor.IsDevicesDirty.Should().BeTrue();
+        editor.IsGeneralDirty.Should().BeFalse();
+
+        editor.Devices[0].HideControls = true;
+        editor.SwitchDelayMs = 500;
+
+        editor.IsDevicesDirty.Should().BeFalse();
+        editor.IsGeneralDirty.Should().BeTrue();
     }
 
     [Fact]
@@ -102,7 +119,7 @@ public class SettingsEditorTests
 
         editor.Devices.Select(d => d.Name).Should().Equal("ipad", "s8", "device-1", "device-2");
         editor.SelectedDevice!.Name.Should().Be("device-2");
-        editor.IsDirty.Should().BeTrue();
+        editor.IsDevicesDirty.Should().BeTrue();
     }
 
     [Fact]
@@ -145,18 +162,20 @@ public class SettingsEditorTests
 
         editor.Devices[0].Name = "Bad Name";
 
-        editor.Errors.Should().ContainSingle().Which.Should().Contain("Bad Name");
-        editor.SaveCommand.CanExecute(null).Should().BeFalse();
+        editor.DeviceErrors.Should().ContainSingle().Which.Should().Contain("Bad Name");
+        editor.SaveDevicesCommand.CanExecute(null).Should().BeFalse();
     }
 
     [Fact]
-    public void A_port_clash_with_simhub_is_an_error()
+    public void A_port_clash_with_simhub_is_a_general_error_only()
     {
         var editor = Create();
 
         editor.Port = 8888;
 
-        editor.Errors.Should().ContainSingle();
+        editor.GeneralErrors.Should().ContainSingle();
+        editor.SaveGeneralCommand.CanExecute(null).Should().BeFalse();
+        editor.DeviceErrors.Should().BeEmpty();
     }
 
     [Fact]
@@ -167,8 +186,8 @@ public class SettingsEditorTests
         editor.Devices[1].SystemIdleDashboard = "Deleted dash";
 
         editor.Warnings.Should().ContainSingle().Which.Should().Contain("Deleted dash").And.Contain("s8");
-        editor.Errors.Should().BeEmpty();
-        editor.SaveCommand.CanExecute(null).Should().BeTrue();
+        editor.DeviceErrors.Should().BeEmpty();
+        editor.SaveDevicesCommand.CanExecute(null).Should().BeTrue();
     }
 
     [Fact]
@@ -228,29 +247,97 @@ public class SettingsEditorTests
     }
 
     [Fact]
-    public void Save_hands_over_the_settings_and_leaves_the_editor_clean()
+    public void Saving_devices_hands_over_the_saved_general_settings_and_keeps_general_edits_unsaved()
     {
         var editor = Create();
         editor.Devices[0].Name = "ipad-left";
+        editor.Port = 9000;
 
-        editor.SaveCommand.Execute(null);
+        editor.SaveDevicesCommand.Execute(null);
 
-        _saved.Should().ContainSingle().Which.Devices[0].Name.Should().Be("ipad-left");
-        editor.IsDirty.Should().BeFalse();
-        editor.SaveCommand.CanExecute(null).Should().BeFalse();
+        var saved = _saved.Should().ContainSingle().Subject;
+        saved.Devices[0].Name.Should().Be("ipad-left");
+        saved.Port.Should().Be(8889);
+        editor.IsDevicesDirty.Should().BeFalse();
+        editor.SaveDevicesCommand.CanExecute(null).Should().BeFalse();
+        editor.IsGeneralDirty.Should().BeTrue();
+        editor.Port.Should().Be(9000);
     }
 
     [Fact]
-    public void Revert_restores_the_last_saved_settings()
+    public void Saving_general_hands_over_the_saved_devices_and_keeps_device_edits_unsaved()
+    {
+        var editor = Create();
+        editor.Devices[0].Name = "ipad-left";
+        editor.Port = 9000;
+
+        editor.SaveGeneralCommand.Execute(null);
+
+        var saved = _saved.Should().ContainSingle().Subject;
+        saved.Port.Should().Be(9000);
+        saved.Devices[0].Name.Should().Be("ipad");
+        editor.IsGeneralDirty.Should().BeFalse();
+        editor.IsDevicesDirty.Should().BeTrue();
+        editor.Devices[0].Name.Should().Be("ipad-left");
+    }
+
+    [Fact]
+    public void Saving_one_tab_then_the_other_saves_both()
+    {
+        var editor = Create();
+        editor.Devices[0].Name = "ipad-left";
+        editor.Port = 9000;
+
+        editor.SaveGeneralCommand.Execute(null);
+        editor.SaveDevicesCommand.Execute(null);
+
+        _saved.Last().Port.Should().Be(9000);
+        _saved.Last().Devices[0].Name.Should().Be("ipad-left");
+        editor.IsDevicesDirty.Should().BeFalse();
+        editor.IsGeneralDirty.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Reverting_devices_keeps_general_edits()
     {
         var editor = Create();
         editor.AddDeviceCommand.Execute(null);
         editor.Port = 9000;
 
-        editor.RevertCommand.Execute(null);
+        editor.RevertDevicesCommand.Execute(null);
+
+        editor.Devices.Select(d => d.Name).Should().Equal("ipad", "s8");
+        editor.IsDevicesDirty.Should().BeFalse();
+        editor.Port.Should().Be(9000);
+        editor.IsGeneralDirty.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Reverting_general_keeps_device_edits()
+    {
+        var editor = Create();
+        editor.AddDeviceCommand.Execute(null);
+        editor.Port = 9000;
+
+        editor.RevertGeneralCommand.Execute(null);
+
+        editor.Port.Should().Be(8889);
+        editor.IsGeneralDirty.Should().BeFalse();
+        editor.Devices.Should().HaveCount(3);
+        editor.IsDevicesDirty.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Reverting_both_tabs_restores_the_last_saved_settings()
+    {
+        var editor = Create();
+        editor.AddDeviceCommand.Execute(null);
+        editor.Port = 9000;
+
+        editor.RevertDevicesCommand.Execute(null);
+        editor.RevertGeneralCommand.Execute(null);
 
         editor.ToSettings().Should().BeEquivalentTo(Saved());
-        editor.IsDirty.Should().BeFalse();
     }
 
     [Fact]
@@ -264,6 +351,20 @@ public class SettingsEditorTests
 
         editor.ToSettings().Should().BeEquivalentTo(Saved());
         _saved.Should().BeEmpty("importing does not save by itself");
+    }
+
+    [Fact]
+    public void Import_leaves_both_tabs_unsaved()
+    {
+        var editor = Create();
+        var imported = Saved();
+        imported.Port = 9000;
+        imported.Devices.RemoveAt(1);
+
+        editor.Import(RouterSettingsJson.Serialize(imported)).Should().BeNull();
+
+        editor.IsDevicesDirty.Should().BeTrue();
+        editor.IsGeneralDirty.Should().BeTrue();
     }
 
     [Fact]
@@ -342,6 +443,7 @@ public class SettingsEditorTests
 
         editor.RefreshStatus(RouterState.SystemIdle, new ServerStatus(true, 8889, "ok"), [], _ => null, DateTime.UtcNow);
 
-        editor.IsDirty.Should().BeFalse();
+        editor.IsDevicesDirty.Should().BeFalse();
+        editor.IsGeneralDirty.Should().BeFalse();
     }
 }

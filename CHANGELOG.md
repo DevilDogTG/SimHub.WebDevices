@@ -14,9 +14,10 @@ All notable changes to this project are documented here. The format follows
 - Live push to devices over Server-Sent Events, with polling fallback, automatic reconnect and a
   "Reconnecting…" notice that keeps the last dashboard on screen.
 - Device connections survive SimHub re-creating plugins on every game switch.
-- "Web Devices" settings tab in SimHub: devices with live status and copyable URLs, per-game mappings with
-  SimHub's game list and "Add current game", dashboard pickers, general settings, validation and
-  warnings, Save/Revert, JSON export and import.
+- "Web Devices" settings tab in SimHub: live status above a **Devices** tab (devices with connection
+  status, current dashboard and copyable URLs, per-game mappings with SimHub's game list and "Add current
+  game", dashboard pickers) and a **General** tab (ports, delays, JSON export and import), each with its
+  own validation and Save/Revert.
 - "Not configured" page for unknown device names, picked up automatically once the device is added.
 - `[WebDevices]` log lines for switches, connections and SimHub's raw game flags.
 - Developer tools: dev install script, release package script and a dev host for testing the device page
