@@ -33,13 +33,14 @@ automatically, by game and by what you are doing in it. Each device opens one fi
 
 ### Usage
 1. Open **Web Devices** in SimHub's left menu.
-2. Click **Add device** and give it a name such as `ipad-left` (lowercase letters, digits, `-` and `_`).
+2. On the **Devices** tab, click **Add device** and give it a name such as `ipad-left` (lowercase letters, digits, `-` and `_`).
 3. Pick dashboards:
    - **When no game is running**: shown while no game is detected.
    - **Any other game**: *In menus* and *Driving* for every game without its own row.
    - **Per game**: pick a game (or **Add current game**) and set its *In menus* and *Driving* dashboards.
      An empty *In menus* shows the driving dashboard.
-4. Click **Save**. Changes apply immediately; no restart is needed.
+4. Click **Save** on the tab. Changes apply immediately; no restart is needed. Each tab (**Devices**,
+   **General**) has its own **Save** and **Revert**, so unsaved changes on one tab are kept when you save the other.
 5. On the device, open the URL shown under **Open on device** (use **Copy**). On iOS, *Share → Add to Home
    Screen* gives a full-screen, SimHub-branded launcher.
 
@@ -55,7 +56,7 @@ keep the screen awake by themselves.
 | **Driving** | Telemetry flowing, not in menus, not paused | game *Driving* → *Any other game · Driving* → *When no game is running* |
 
 - Switching to *No game running* waits 3 s by default, so restarting a game does not flash every device.
-  Both delays are in **General**.
+  Both delays are on the **General** tab.
 - A device whose dashboard does not change is not reloaded.
 - Games are matched by SimHub's game code (custom games appear by name in the tab).
 

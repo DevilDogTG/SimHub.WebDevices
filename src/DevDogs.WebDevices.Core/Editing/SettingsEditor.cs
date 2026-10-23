@@ -14,7 +14,8 @@ namespace DevDogs.WebDevices.Core.Editing;
 
 /// <summary>
 /// The settings tab's view model: edits a copy of the settings, validates it, and hands it over on Save.
-/// Live status is refreshed separately and never counts as an edit.
+/// The devices and the general settings are saved and reverted separately, each against the other's
+/// saved values. Live status is refreshed separately and never counts as an edit.
 /// </summary>
 public sealed class SettingsEditor : ObservableObject
 {
@@ -23,6 +24,7 @@ public sealed class SettingsEditor : ObservableObject
     private readonly Action<RouterSettings> _save;
     private readonly Dictionary<string, string> _gameNames;
     private readonly HashSet<string> _dashboardSet;
+    private RouterSettings _saved;
     private string _savedJson;
     private bool _loading;
     private DeviceEditor? _selectedDevice;
@@ -31,8 +33,10 @@ public sealed class SettingsEditor : ObservableObject
     private int _simHubWebPort;
     private int _systemIdleDelayMs;
     private int _switchDelayMs;
-    private bool _isDirty;
-    private IReadOnlyList<string> _errors = [];
+    private bool _isDevicesDirty;
+    private bool _isGeneralDirty;
+    private IReadOnlyList<string> _deviceErrors = [];
+    private IReadOnlyList<string> _generalErrors = [];
     private IReadOnlyList<string> _warnings = [];
     private string _serverText = "";
     private string _stateText = "";
@@ -66,17 +70,20 @@ public sealed class SettingsEditor : ObservableObject
             _gameNames[game.Code] = game.Name;
         }
 
-        _savedJson = RouterSettingsJson.Serialize(saved);
+        _saved = Copy(saved);
+        _savedJson = RouterSettingsJson.Serialize(_saved);
         AddDeviceCommand = new RelayCommand(AddDevice);
         RemoveDeviceCommand = new RelayCommand(RemoveDevice, () => SelectedDevice is not null);
         AddGameCommand = new RelayCommand(() => AddGame(SelectedGameToAdd?.Code), () => SelectedDevice is not null && SelectedGameToAdd is not null);
         AddCurrentGameCommand = new RelayCommand(() => AddGame(_currentGame()), () => SelectedDevice is not null && _currentGame() is not null);
         RemoveGameCommand = new RelayCommand<GameMappingEditor>(row => SelectedDevice?.Games.Remove(row));
-        SaveCommand = new RelayCommand(Save, () => IsDirty && Errors.Count == 0);
-        RevertCommand = new RelayCommand(() => Load(RouterSettingsJson.Deserialize(_savedJson)), () => IsDirty);
+        SaveDevicesCommand = new RelayCommand(() => Save(DevicesToSave()), () => IsDevicesDirty && DeviceErrors.Count == 0);
+        RevertDevicesCommand = new RelayCommand(() => Load(() => LoadDevices(_saved)), () => IsDevicesDirty);
+        SaveGeneralCommand = new RelayCommand(() => Save(GeneralToSave()), () => IsGeneralDirty && GeneralErrors.Count == 0);
+        RevertGeneralCommand = new RelayCommand(() => Load(() => LoadGeneral(_saved)), () => IsGeneralDirty);
 
         Devices.CollectionChanged += OnDevicesChanged;
-        Load(saved);
+        Load(() => LoadAll(saved));
     }
 
     /// <summary>Gets the installed dashboard codes, for the pickers.</summary>
@@ -153,21 +160,35 @@ public sealed class SettingsEditor : ObservableObject
         set => Set(ref _switchDelayMs, value);
     }
 
-    /// <summary>Gets a value indicating whether there are unsaved changes.</summary>
-    public bool IsDirty
+    /// <summary>Gets a value indicating whether the devices have unsaved changes.</summary>
+    public bool IsDevicesDirty
     {
-        get => _isDirty;
-        private set => SetProperty(ref _isDirty, value);
+        get => _isDevicesDirty;
+        private set => SetProperty(ref _isDevicesDirty, value);
     }
 
-    /// <summary>Gets the problems that block saving.</summary>
-    public IReadOnlyList<string> Errors
+    /// <summary>Gets a value indicating whether the general settings have unsaved changes.</summary>
+    public bool IsGeneralDirty
     {
-        get => _errors;
-        private set => SetProperty(ref _errors, value);
+        get => _isGeneralDirty;
+        private set => SetProperty(ref _isGeneralDirty, value);
     }
 
-    /// <summary>Gets problems that do not block saving, such as dashboards that are not installed.</summary>
+    /// <summary>Gets the problems that block saving the devices.</summary>
+    public IReadOnlyList<string> DeviceErrors
+    {
+        get => _deviceErrors;
+        private set => SetProperty(ref _deviceErrors, value);
+    }
+
+    /// <summary>Gets the problems that block saving the general settings.</summary>
+    public IReadOnlyList<string> GeneralErrors
+    {
+        get => _generalErrors;
+        private set => SetProperty(ref _generalErrors, value);
+    }
+
+    /// <summary>Gets device problems that do not block saving, such as dashboards that are not installed.</summary>
     public IReadOnlyList<string> Warnings
     {
         get => _warnings;
@@ -203,24 +224,23 @@ public sealed class SettingsEditor : ObservableObject
     /// <summary>Gets the command that removes a game row (the row is the parameter).</summary>
     public RelayCommand<GameMappingEditor> RemoveGameCommand { get; }
 
-    /// <summary>Gets the command that saves and applies the settings.</summary>
-    public RelayCommand SaveCommand { get; }
+    /// <summary>Gets the command that saves and applies the devices, keeping the saved general settings.</summary>
+    public RelayCommand SaveDevicesCommand { get; }
 
-    /// <summary>Gets the command that discards unsaved changes.</summary>
-    public RelayCommand RevertCommand { get; }
+    /// <summary>Gets the command that discards unsaved device changes.</summary>
+    public RelayCommand RevertDevicesCommand { get; }
+
+    /// <summary>Gets the command that saves and applies the general settings, keeping the saved devices.</summary>
+    public RelayCommand SaveGeneralCommand { get; }
+
+    /// <summary>Gets the command that discards unsaved general settings changes.</summary>
+    public RelayCommand RevertGeneralCommand { get; }
 
     /// <summary>
     /// Returns the edited settings.
     /// </summary>
     /// <returns>The settings.</returns>
-    public RouterSettings ToSettings() => new()
-    {
-        Port = Port,
-        SimHubWebPort = SimHubWebPort,
-        SystemIdleDelayMs = SystemIdleDelayMs,
-        SwitchDelayMs = SwitchDelayMs,
-        Devices = Devices.Select(d => d.ToConfig()).ToList(),
-    };
+    public RouterSettings ToSettings() => WithDevices(EditedDevices());
 
     /// <summary>
     /// Returns the edited settings as export JSON.
@@ -229,7 +249,7 @@ public sealed class SettingsEditor : ObservableObject
     public string Export() => RouterSettingsJson.Serialize(ToSettings());
 
     /// <summary>
-    /// Loads settings from export JSON as unsaved changes.
+    /// Loads settings from export JSON as unsaved changes on both tabs.
     /// </summary>
     /// <param name="json">The JSON text.</param>
     /// <returns><see langword="null"/> on success, otherwise why the text could not be read.</returns>
@@ -237,7 +257,8 @@ public sealed class SettingsEditor : ObservableObject
     {
         try
         {
-            Load(RouterSettingsJson.Deserialize(json));
+            var settings = RouterSettingsJson.Deserialize(json);
+            Load(() => LoadAll(settings));
             return null;
         }
         catch (FormatException ex)
@@ -312,38 +333,39 @@ public sealed class SettingsEditor : ObservableObject
 
     private string UrlBase() => $"http://{_hostAddress()}:{Port.ToString(CultureInfo.InvariantCulture)}/";
 
-    private void Load(RouterSettings settings)
+    private static RouterSettings Copy(RouterSettings settings) => RouterSettingsJson.Deserialize(RouterSettingsJson.Serialize(settings));
+
+    private List<DeviceConfig> EditedDevices() => Devices.Select(d => d.ToConfig()).ToList();
+
+    private RouterSettings WithDevices(List<DeviceConfig> devices) => new()
+    {
+        Port = Port,
+        SimHubWebPort = SimHubWebPort,
+        SystemIdleDelayMs = SystemIdleDelayMs,
+        SwitchDelayMs = SwitchDelayMs,
+        Devices = devices,
+    };
+
+    /// <summary>Returns what the devices tab saves: the edited devices with the saved general settings.</summary>
+    private RouterSettings DevicesToSave() => new()
+    {
+        Port = _saved.Port,
+        SimHubWebPort = _saved.SimHubWebPort,
+        SystemIdleDelayMs = _saved.SystemIdleDelayMs,
+        SwitchDelayMs = _saved.SwitchDelayMs,
+        Devices = EditedDevices(),
+    };
+
+    /// <summary>Returns what the general tab saves: the edited general settings with the saved devices.</summary>
+    private RouterSettings GeneralToSave() => WithDevices(_saved.Devices);
+
+    /// <summary>Applies loaded values without reacting to each one, then re-checks everything once.</summary>
+    private void Load(Action apply)
     {
         _loading = true;
         try
         {
-            var selectedName = SelectedDevice?.Name;
-            Port = settings.Port;
-            SimHubWebPort = settings.SimHubWebPort;
-            SystemIdleDelayMs = settings.SystemIdleDelayMs;
-            SwitchDelayMs = settings.SwitchDelayMs;
-
-            Devices.Clear();
-            foreach (var config in settings.Devices)
-            {
-                var device = NewDevice();
-                device.Name = config.Name;
-                device.HideControls = config.HideControls;
-                device.SystemIdleDashboard = config.SystemIdleDashboard;
-                device.DefaultGameIdle = config.Default.GameIdle;
-                device.DefaultDriving = config.Default.Driving;
-                foreach (var game in config.Games)
-                {
-                    var row = NewGameRow(game.GameName);
-                    row.GameIdle = game.GameIdle;
-                    row.Driving = game.Driving;
-                    device.Games.Add(row);
-                }
-
-                Devices.Add(device);
-            }
-
-            SelectedDevice = Devices.FirstOrDefault(d => d.Name == selectedName) ?? Devices.FirstOrDefault();
+            apply();
         }
         finally
         {
@@ -351,6 +373,46 @@ public sealed class SettingsEditor : ObservableObject
         }
 
         Changed();
+    }
+
+    private void LoadAll(RouterSettings settings)
+    {
+        LoadGeneral(settings);
+        LoadDevices(settings);
+    }
+
+    private void LoadGeneral(RouterSettings settings)
+    {
+        Port = settings.Port;
+        SimHubWebPort = settings.SimHubWebPort;
+        SystemIdleDelayMs = settings.SystemIdleDelayMs;
+        SwitchDelayMs = settings.SwitchDelayMs;
+    }
+
+    private void LoadDevices(RouterSettings settings)
+    {
+        var selectedName = SelectedDevice?.Name;
+        Devices.Clear();
+        foreach (var config in settings.Devices)
+        {
+            var device = NewDevice();
+            device.Name = config.Name;
+            device.HideControls = config.HideControls;
+            device.SystemIdleDashboard = config.SystemIdleDashboard;
+            device.DefaultGameIdle = config.Default.GameIdle;
+            device.DefaultDriving = config.Default.Driving;
+            foreach (var game in config.Games)
+            {
+                var row = NewGameRow(game.GameName);
+                row.GameIdle = game.GameIdle;
+                row.Driving = game.Driving;
+                device.Games.Add(row);
+            }
+
+            Devices.Add(device);
+        }
+
+        SelectedDevice = Devices.FirstOrDefault(d => d.Name == selectedName) ?? Devices.FirstOrDefault();
     }
 
     private DeviceEditor NewDevice() => new(Changed, UrlBase);
@@ -402,11 +464,11 @@ public sealed class SettingsEditor : ObservableObject
         SelectedDevice.Games.Add(NewGameRow(code!));
     }
 
-    private void Save()
+    private void Save(RouterSettings settings)
     {
-        var settings = ToSettings();
         _save(settings);
-        _savedJson = RouterSettingsJson.Serialize(settings);
+        _saved = Copy(settings);
+        _savedJson = RouterSettingsJson.Serialize(_saved);
         Changed();
     }
 
@@ -427,10 +489,13 @@ public sealed class SettingsEditor : ObservableObject
             return;
         }
 
-        var settings = ToSettings();
-        Errors = RouterSettingsValidator.Validate(settings);
-        Warnings = DashboardWarnings(settings);
-        IsDirty = RouterSettingsJson.Serialize(settings) != _savedJson;
+        var devices = DevicesToSave();
+        var general = GeneralToSave();
+        DeviceErrors = RouterSettingsValidator.Validate(devices);
+        GeneralErrors = RouterSettingsValidator.Validate(general);
+        Warnings = DashboardWarnings(devices);
+        IsDevicesDirty = RouterSettingsJson.Serialize(devices) != _savedJson;
+        IsGeneralDirty = RouterSettingsJson.Serialize(general) != _savedJson;
         RefreshCommands();
     }
 
@@ -455,7 +520,9 @@ public sealed class SettingsEditor : ObservableObject
         RemoveDeviceCommand.RaiseCanExecuteChanged();
         AddGameCommand.RaiseCanExecuteChanged();
         AddCurrentGameCommand.RaiseCanExecuteChanged();
-        SaveCommand.RaiseCanExecuteChanged();
-        RevertCommand.RaiseCanExecuteChanged();
+        SaveDevicesCommand.RaiseCanExecuteChanged();
+        RevertDevicesCommand.RaiseCanExecuteChanged();
+        SaveGeneralCommand.RaiseCanExecuteChanged();
+        RevertGeneralCommand.RaiseCanExecuteChanged();
     }
 }
