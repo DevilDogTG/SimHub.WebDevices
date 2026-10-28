@@ -16,8 +16,9 @@ public static class RouterSettingsValidator
     /// Returns every problem found in <paramref name="settings"/>; an empty list means the settings are valid.
     /// </summary>
     /// <param name="settings">The settings to check.</param>
+    /// <param name="simHub">SimHub's own web ports, which the device port must not use; unchecked when omitted.</param>
     /// <returns>One human-readable message per problem.</returns>
-    public static IReadOnlyList<string> Validate(RouterSettings settings)
+    public static IReadOnlyList<string> Validate(RouterSettings settings, SimHubPorts? simHub = null)
     {
         var errors = new List<string>();
 
@@ -28,6 +29,10 @@ public static class RouterSettingsValidator
         else if (settings.Port == settings.SimHubWebPort)
         {
             errors.Add($"Port {settings.Port} is SimHub's own web port; choose another.");
+        }
+        else if (simHub?.Conflict(settings.Port) is { } conflict)
+        {
+            errors.Add(conflict);
         }
 
         if (settings.SimHubWebPort is < 1 or > MaxPort)

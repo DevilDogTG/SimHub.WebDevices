@@ -30,7 +30,7 @@ public class SettingsEditorTests
 
     private static RouterSettings Saved() => new()
     {
-        Port = 8889,
+        Port = 8890,
         SystemIdleDelayMs = 3000,
         Devices =
         {
@@ -46,15 +46,15 @@ public class SettingsEditorTests
         },
     };
 
-    private SettingsEditor Create(RouterSettings? settings = null) =>
-        new(settings ?? Saved(), Dashboards, Games, () => _currentGame, () => "192.168.10.102", _saved.Add);
+    private SettingsEditor Create(RouterSettings? settings = null, SimHubPorts? simHubPorts = null) =>
+        new(settings ?? Saved(), Dashboards, Games, () => _currentGame, () => "192.168.10.102", _saved.Add, simHubPorts);
 
     [Fact]
     public void Loads_devices_general_settings_and_friendly_game_names()
     {
         var editor = Create();
 
-        editor.Port.Should().Be(8889);
+        editor.Port.Should().Be(8890);
         editor.SystemIdleDelayMs.Should().Be(3000);
         editor.Devices.Select(d => d.Name).Should().Equal("ipad", "s8");
         editor.SelectedDevice.Should().BeSameAs(editor.Devices[0]);
@@ -179,6 +179,20 @@ public class SettingsEditorTests
     }
 
     [Fact]
+    public void A_saved_port_on_simhubs_https_port_blocks_only_the_general_tab()
+    {
+        var editor = Create(new RouterSettings { Port = 8889, Devices = { new DeviceConfig { Name = "ipad" } } }, SimHubPorts.Default);
+
+        editor.GeneralErrors.Should().ContainSingle().Which.Should().Contain("HTTPS port");
+        editor.DeviceErrors.Should().BeEmpty();
+
+        editor.Port = 8890;
+
+        editor.GeneralErrors.Should().BeEmpty();
+        editor.SaveGeneralCommand.CanExecute(null).Should().BeTrue();
+    }
+
+    [Fact]
     public void Unknown_dashboards_are_warnings_that_still_allow_saving()
     {
         var editor = Create();
@@ -257,7 +271,7 @@ public class SettingsEditorTests
 
         var saved = _saved.Should().ContainSingle().Subject;
         saved.Devices[0].Name.Should().Be("ipad-left");
-        saved.Port.Should().Be(8889);
+        saved.Port.Should().Be(8890);
         editor.IsDevicesDirty.Should().BeFalse();
         editor.SaveDevicesCommand.CanExecute(null).Should().BeFalse();
         editor.IsGeneralDirty.Should().BeTrue();
@@ -321,7 +335,7 @@ public class SettingsEditorTests
 
         editor.RevertGeneralCommand.Execute(null);
 
-        editor.Port.Should().Be(8889);
+        editor.Port.Should().Be(8890);
         editor.IsGeneralDirty.Should().BeFalse();
         editor.Devices.Should().HaveCount(3);
         editor.IsDevicesDirty.Should().BeTrue();
@@ -383,7 +397,7 @@ public class SettingsEditorTests
         var editor = Create();
         var device = editor.Devices[0];
 
-        device.Url.Should().Be("http://192.168.10.102:8889/ipad/");
+        device.Url.Should().Be("http://192.168.10.102:8890/ipad/");
 
         device.Name = "ipad-left";
         editor.Port = 9000;
@@ -404,12 +418,12 @@ public class SettingsEditorTests
 
         editor.RefreshStatus(
             new RouterState(GameState.Driving, CustomCode),
-            new ServerStatus(true, 8889, "Listening on port 8889."),
+            new ServerStatus(true, 8890, "Listening on port 8890."),
             seen,
             name => name == "ipad" ? new DeviceTarget("Truck", "/Dash?v=1#Truck") : new DeviceTarget(null, null),
             now);
 
-        editor.ServerText.Should().Be("Listening on port 8889.");
+        editor.ServerText.Should().Be("Listening on port 8890.");
         editor.StateText.Should().Be("Driving · TestTaskManager");
         editor.Devices[0].IsConnected.Should().BeTrue();
         editor.Devices[0].StatusText.Should().Be("Connected from 192.168.10.20");
@@ -426,7 +440,7 @@ public class SettingsEditorTests
 
         editor.RefreshStatus(
             RouterState.SystemIdle,
-            new ServerStatus(false, 8889, "Port 8889 is already in use by another program. Choose another port."),
+            new ServerStatus(false, 8890, "Port 8890 is already in use by another program. Choose another port."),
             [],
             _ => null,
             DateTime.UtcNow);
@@ -441,7 +455,7 @@ public class SettingsEditorTests
     {
         var editor = Create();
 
-        editor.RefreshStatus(RouterState.SystemIdle, new ServerStatus(true, 8889, "ok"), [], _ => null, DateTime.UtcNow);
+        editor.RefreshStatus(RouterState.SystemIdle, new ServerStatus(true, 8890, "ok"), [], _ => null, DateTime.UtcNow);
 
         editor.IsDevicesDirty.Should().BeFalse();
         editor.IsGeneralDirty.Should().BeFalse();

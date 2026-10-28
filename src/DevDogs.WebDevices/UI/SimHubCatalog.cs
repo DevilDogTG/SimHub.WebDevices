@@ -5,13 +5,14 @@ using System.Linq;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
+using DevDogs.WebDevices.Core.Config;
 using DevDogs.WebDevices.Core.Editing;
 
 namespace DevDogs.WebDevices.UI;
 
 /// <summary>
-/// What the settings tab needs from SimHub and the PC: installed dashboards, known games and the address
-/// devices use to reach this PC.
+/// What the plugin needs from SimHub and the PC: installed dashboards, known games, SimHub's own web ports
+/// and the address devices use to reach this PC.
 /// </summary>
 internal static class SimHubCatalog
 {
@@ -39,6 +40,13 @@ internal static class SimHubCatalog
             return [];
         }
     }
+
+    /// <summary>
+    /// Returns the ports SimHub's own web server uses, read from its settings (SimHub's defaults if unreadable).
+    /// </summary>
+    /// <returns>The ports.</returns>
+    public static SimHubPorts WebPorts() =>
+        SimHubPorts.Read(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "PluginsData", "Common", "DashStudioSettings_2.json"));
 
     /// <summary>
     /// Returns the IPv4 address of the network adapter that has a default gateway, which is the one other

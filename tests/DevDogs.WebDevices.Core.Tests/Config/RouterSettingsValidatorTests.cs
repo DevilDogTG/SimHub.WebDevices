@@ -134,6 +134,22 @@ public class RouterSettingsValidatorTests
     }
 
     [Theory]
+    [InlineData(8888, "web port")]
+    [InlineData(8889, "HTTPS port")]
+    public void Port_must_differ_from_the_ports_simhub_itself_uses(int port, string reason)
+    {
+        var settings = new RouterSettings { Port = port, SimHubWebPort = 8000 };
+
+        RouterSettingsValidator.Validate(settings, SimHubPorts.Default).Should().ContainSingle().Which.Should().Contain(reason);
+    }
+
+    [Fact]
+    public void Simhub_ports_are_unchecked_when_not_given()
+    {
+        RouterSettingsValidator.Validate(new RouterSettings { Port = 8889 }).Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData(-1, 0)]
     [InlineData(0, -1)]
     [InlineData(60001, 0)]

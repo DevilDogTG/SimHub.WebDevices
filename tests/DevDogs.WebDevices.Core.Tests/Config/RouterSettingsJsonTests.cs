@@ -40,7 +40,7 @@ public class RouterSettingsJsonTests
     {
         var settings = RouterSettingsJson.Deserialize("""{ "Devices": [ { "Name": "ipad" } ] }""");
 
-        settings.Port.Should().Be(8889);
+        settings.Port.Should().Be(8890);
         settings.SimHubWebPort.Should().Be(8888);
         settings.Devices.Should().ContainSingle().Which.Default.Should().NotBeNull();
         settings.Devices[0].Games.Should().BeEmpty();

@@ -15,7 +15,7 @@ public sealed class RouterSettings
     public int Version { get; set; } = CurrentVersion;
 
     /// <summary>Gets or sets the TCP port devices connect to.</summary>
-    public int Port { get; set; } = 8889;
+    public int Port { get; set; } = 8890;
 
     /// <summary>Gets or sets the port of SimHub's own web server, which serves the dashboards.</summary>
     public int SimHubWebPort { get; set; } = 8888;
