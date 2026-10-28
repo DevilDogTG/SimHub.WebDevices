@@ -90,7 +90,7 @@ public class WebDevicesPlugin : IPlugin, IDataPlugin, IWPFSettingsV2
                 () => DateTime.UtcNow,
                 message => SimHub.Logging.Current.Info(LogPrefix + message));
         });
-        _host.Configure(Settings);
+        _host.Configure(Settings, SimHubCatalog.WebPorts());
 
         SimHub.Logging.Current.Info(
             $"{LogPrefix}Loaded with {Settings.Devices.Count} device(s){(reused ? "; server kept running" : "")}.");
@@ -143,6 +143,7 @@ public class WebDevicesPlugin : IPlugin, IDataPlugin, IWPFSettingsV2
     public Control GetWPFSettingsControl(PluginManager pluginManager)
     {
         var host = _host;
+        var simHubPorts = SimHubCatalog.WebPorts();
         var editor = new SettingsEditor(
             Settings,
             SimHubCatalog.Dashboards(),
@@ -153,9 +154,10 @@ public class WebDevicesPlugin : IPlugin, IDataPlugin, IWPFSettingsV2
             {
                 this.SaveCommonSettings(SettingsKey, settings);
                 Settings = settings;
-                var status = host.Configure(settings);
+                var status = host.Configure(settings, simHubPorts);
                 SimHub.Logging.Current.Info($"{LogPrefix}Settings saved: {settings.Devices.Count} device(s). {status.Message}");
-            });
+            },
+            simHubPorts);
 
         return new SettingsControl(
             editor,

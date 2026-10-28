@@ -42,4 +42,8 @@ change on a standard SimHub install and the required HTTP surface is tiny.
 **Harder:** HTTP features beyond the device page's needs are not supported; every non-stream response
 closes its connection. If a firewall blocks `SimHubWPF.exe` (for example the rule was removed), devices
 cannot connect to :8888 either, so the fix is the same for both.
-**Follow-up:** If SimHub ever drops its program firewall rule, document adding one for port 8889.
+**Follow-up:** If SimHub ever drops its program firewall rule, document adding one for the device port.
+
+**Update (2026-10-24):** The default device port moved from 8889 to 8890. 8889 is SimHub's own HTTPS port
+(`SimHubWebHttpsPort` in `PluginsData\Common\DashStudioSettings_2.json`); taking it stopped SimHub's web
+server on a PC with HTTPS on. The server now refuses both of SimHub's web ports.

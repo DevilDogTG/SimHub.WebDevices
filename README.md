@@ -2,7 +2,7 @@
 
 A SimHub plugin that switches the dashboard on every phone and tablet showing SimHub in a browser,
 automatically, by game and by what you are doing in it. Each device opens one fixed URL once,
-`http://<simhub-pc>:8889/<device-name>/`, and never needs touching again.
+`http://<simhub-pc>:8890/<device-name>/`, and never needs touching again.
 
 ## 🚀 Features
 - **One URL per device.** Add devices by name in SimHub; each gets its own page to open in the device's browser.
@@ -64,7 +64,8 @@ keep the screen awake by themselves.
 
 | Problem | What to check |
 |---|---|
-| Device page does not load | Same network as the PC? The **Status** line should say *Listening on port 8889*. If it reports the port is in use or reserved by Windows, choose another **Device port**. |
+| Device page does not load | Same network as the PC? The **Status** line should say *Listening on port 8890*. If it reports the port is in use, reserved by Windows or one of SimHub's own web ports, choose another **Device port**. |
+| SimHub's own dashboards stop working after installing | The **Device port** must not be SimHub's web or HTTPS port (8888 / 8889 by default, set in SimHub's web server settings). The plugin refuses those ports; older settings may still name one: change **Device port**, save, and restart SimHub. |
 | "… is not configured in SimHub" | The name in the URL must match a saved device. The page picks the device up by itself once it is added and saved. |
 | Page loads but stays black | SimHub's own web server must be reachable: try `http://<simhub-pc>:8888/` on the device; check **SimHub web port**. |
 | "Reconnecting to SimHub…" | The device lost the connection (Wi-Fi drop, SimHub restart). It recovers by itself; the last dashboard stays on screen meanwhile. |
@@ -106,7 +107,7 @@ pwsh ./build/Install-DevBuild.ps1
 The dev host serves device pages from the real server with game states typed in (`idle`, `menu <game>`,
 `drive <game>`, `pause <game>`, `reload`, `quit`). SimHub must be running for the dashboards themselves.
 ```bash
-dotnet run --project tools/DevDogs.WebDevices.DevHost -- --port 8890
+dotnet run --project tools/DevDogs.WebDevices.DevHost -- --port 8891
 ```
 
 ### Package a release

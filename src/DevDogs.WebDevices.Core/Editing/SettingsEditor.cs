@@ -22,6 +22,7 @@ public sealed class SettingsEditor : ObservableObject
     private readonly Func<string?> _currentGame;
     private readonly Func<string> _hostAddress;
     private readonly Action<RouterSettings> _save;
+    private readonly SimHubPorts? _simHubPorts;
     private readonly Dictionary<string, string> _gameNames;
     private readonly HashSet<string> _dashboardSet;
     private RouterSettings _saved;
@@ -50,19 +51,22 @@ public sealed class SettingsEditor : ObservableObject
     /// <param name="currentGame">Returns the code of SimHub's current game, if any.</param>
     /// <param name="hostAddress">Returns the PC address devices use to reach SimHub.</param>
     /// <param name="save">Persists and applies settings.</param>
+    /// <param name="simHubPorts">SimHub's own web ports, which the device port must not use; unchecked when omitted.</param>
     public SettingsEditor(
         RouterSettings saved,
         IReadOnlyList<string> dashboards,
         IReadOnlyList<GameOption> games,
         Func<string?> currentGame,
         Func<string> hostAddress,
-        Action<RouterSettings> save)
+        Action<RouterSettings> save,
+        SimHubPorts? simHubPorts = null)
     {
         Dashboards = dashboards;
         Games = games;
         _currentGame = currentGame;
         _hostAddress = hostAddress;
         _save = save;
+        _simHubPorts = simHubPorts;
         _dashboardSet = new HashSet<string>(dashboards, StringComparer.OrdinalIgnoreCase);
         _gameNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var game in games)
@@ -492,7 +496,7 @@ public sealed class SettingsEditor : ObservableObject
         var devices = DevicesToSave();
         var general = GeneralToSave();
         DeviceErrors = RouterSettingsValidator.Validate(devices);
-        GeneralErrors = RouterSettingsValidator.Validate(general);
+        GeneralErrors = RouterSettingsValidator.Validate(general, _simHubPorts);
         Warnings = DashboardWarnings(devices);
         IsDevicesDirty = RouterSettingsJson.Serialize(devices) != _savedJson;
         IsGeneralDirty = RouterSettingsJson.Serialize(general) != _savedJson;

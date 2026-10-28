@@ -44,13 +44,20 @@ public sealed class RouterHost : IDisposable
 
     /// <summary>
     /// Applies settings and makes sure the server listens on the configured port. An unchanged port keeps
-    /// the running server, and every open device stream, as they are.
+    /// the running server, and every open device stream, as they are. A port SimHub's own web server uses
+    /// stops the server instead, so SimHub's web server can start.
     /// </summary>
     /// <param name="settings">The settings.</param>
+    /// <param name="simHub">SimHub's own web ports; unchecked when omitted.</param>
     /// <returns>The server status.</returns>
-    public ServerStatus Configure(RouterSettings settings)
+    public ServerStatus Configure(RouterSettings settings, SimHubPorts? simHub = null)
     {
         Router.ApplySettings(settings);
+        if (simHub?.Conflict(settings.Port) is { } conflict)
+        {
+            return Server.Refuse(settings.Port, conflict);
+        }
+
         var status = Server.Status;
         return status.Listening && status.Port == settings.Port ? status : Server.Start(settings.Port);
     }

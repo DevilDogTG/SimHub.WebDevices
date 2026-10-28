@@ -18,7 +18,7 @@ public static class Program
     private const string Usage = """
         Usage: DevHost [--port <n>] [--settings <file>] [--commands <file>]
 
-          --port      Port to serve devices on (default 8890, so it can run next to the plugin's 8889).
+          --port      Port to serve devices on (default 8891, so it can run next to the plugin's 8890).
           --settings  Settings JSON in the plugin's format (default: one device "test").
           --commands  A file polled for commands; each write is run and the file emptied.
 
@@ -110,7 +110,7 @@ public static class Program
             }
             : RouterSettingsJson.Deserialize(File.ReadAllText(path));
 
-        settings.Port = port ?? (path is null ? 8890 : settings.Port);
+        settings.Port = port ?? (path is null ? 8891 : settings.Port);
         foreach (var problem in RouterSettingsValidator.Validate(settings))
         {
             Log("Settings problem: " + problem);

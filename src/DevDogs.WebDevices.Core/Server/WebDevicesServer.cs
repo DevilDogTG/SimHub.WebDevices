@@ -105,6 +105,23 @@ public sealed class WebDevicesServer : IDisposable
         }
     }
 
+    /// <summary>
+    /// Stops listening, if it was, and records why the server does not listen on <paramref name="port"/>.
+    /// </summary>
+    /// <param name="port">The port the server must not use.</param>
+    /// <param name="reason">The explanation shown in the status.</param>
+    /// <returns>The new status.</returns>
+    public ServerStatus Refuse(int port, string reason)
+    {
+        lock (_gate)
+        {
+            StopListening();
+            Status = new ServerStatus(false, port, reason);
+            Log?.Invoke(Status.Message);
+            return Status;
+        }
+    }
+
     /// <inheritdoc/>
     public void Dispose() => Stop();
 

@@ -108,6 +108,32 @@ public sealed class RouterHostTests : IDisposable
     }
 
     [Fact]
+    public async Task A_port_simhub_uses_is_refused_and_stops_the_server()
+    {
+        _host.Configure(Settings(_port));
+
+        var status = _host.Configure(Settings(_port), new SimHubPorts(8888, _port));
+
+        status.Listening.Should().BeFalse();
+        status.Message.Should().Contain("SimHub's HTTPS port");
+        _host.Server.Status.Should().Be(status);
+        var request = async () => await GetStateAsync(_port);
+        await request.Should().ThrowAsync<HttpRequestException>();
+    }
+
+    [Fact]
+    public async Task Moving_off_a_refused_port_starts_the_server()
+    {
+        var simHub = new SimHubPorts(8888, _port);
+        _host.Configure(Settings(_port), simHub);
+        var newPort = FreePort();
+
+        _host.Configure(Settings(newPort), simHub).Listening.Should().BeTrue();
+
+        (await GetStateAsync(newPort)).Should().Contain("Clock");
+    }
+
+    [Fact]
     public void Observe_routes_by_the_hosts_own_clock()
     {
         _host.Configure(Settings(_port));
